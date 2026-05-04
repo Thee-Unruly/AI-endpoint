@@ -19,11 +19,11 @@ class StoryInput(BaseModel):
 def get_db_connection():
     try:
         conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", 7392)),
-            dbname=os.getenv("DB_NAME", "AgilePm"),
-            user=os.getenv("DB_USER", "dev"),
-            password=os.getenv("DB_PASSWORD", ""),
+            host=os.getenv("DB_HOST"),
+            port=int(os.getenv("DB_PORT")),
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
         )
         return conn
     except Exception as e:

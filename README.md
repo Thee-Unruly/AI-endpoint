@@ -102,19 +102,6 @@ curl http://localhost:8000/generate-tasks/d705c1e8-f732-451d-b962-90424b248bab
 ```
 
 ---
-
-## Database
-
-| Setting  | Value            |
-|----------|-----------------|
-| Host     | 4.210.74.237    |
-| Port     | 7392            |
-| Database | AgilePm         |
-| Schema   | projectmanagement |
-| Table    | user_stories    |
-
----
-
 ## Files
 
 | File | Purpose |

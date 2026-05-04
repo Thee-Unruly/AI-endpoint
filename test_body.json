@@ -1,0 +1,5 @@
+{
+    "title": "Develop and validate data migration scripts",
+    "description": "As a developer, I want to develop two migration scripts - one for extracting data from Old PMIS and one for updating data after the old system is switched off - so that data is accurately and completely transferred to e-PMIS",
+    "acceptance_criteria": "Script 1 extracts all relevant data from Old PMIS. Script 2 updates current workflow in e-PMIS with verified static data after switch-off. Both scripts are tested before running against production. Execution logs are available for audit."
+}

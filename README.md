@@ -20,10 +20,10 @@ venv/Scripts/pip install fastapi uvicorn psycopg2-binary openai python-dotenv la
 ### 3. Configure environment variables
 Create a `.env` file in the project root (already included — do not commit):
 ```
-DB_HOST=4.210.74.237
-DB_PORT=7392
-DB_NAME=AgilePm
-DB_USER=dev
+DB_HOST=ur host 
+DB_PORT=ur db port
+DB_NAME=ur db name
+DB_USER=ur user name
 DB_PASSWORD=<password>
 
 GROQ_API_KEY=<your_groq_api_key>

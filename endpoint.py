@@ -1,7 +1,9 @@
 import os
 import re
+import json
 import psycopg2
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
@@ -9,6 +11,14 @@ from groq import Groq
 load_dotenv(override=True)
 
 app = FastAPI(title="AgilePM Task Generator")
+
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in allowed_origins if o.strip()],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 
 def strip_html(text: str | None) -> str:
@@ -78,7 +88,18 @@ Description:
 Acceptance Criteria:
 {clean_criteria or '(no acceptance criteria provided)'}
 
-Return a numbered list of specific, actionable development tasks needed to complete this user story. Each task should be concise and clear."""
+Return ONLY a valid JSON array of 3 to 7 tasks. Each object must have exactly these fields:
+- "title": short, actionable task name (max 10 words)
+- "description": one sentence explaining what needs to be done
+- "estimated_days": a number (0.5, 1, 2, etc.) for how long the task will take
+
+Example format:
+[
+  {{"title": "Create role detection service", "description": "Implement backend service that identifies user role on login and exposes it via API.", "estimated_days": 2}},
+  {{"title": "Build help content filter", "description": "Create a component that filters help articles based on the current user role.", "estimated_days": 1}}
+]
+
+Return only the JSON array, no extra text."""
 
     try:
         load_dotenv(override=True)
@@ -86,22 +107,33 @@ Return a numbered list of specific, actionable development tasks needed to compl
         response = client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=[
-                {"role": "system", "content": "You are an experienced agile project manager who breaks user stories into clear development tasks."},
+                {"role": "system", "content": "You are an experienced agile project manager. Always respond with valid JSON only, no markdown, no extra text."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,
         )
-        raw_tasks = response.choices[0].message.content.strip()
+        raw_response = response.choices[0].message.content.strip()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI generation failed: {str(e)}")
 
-    tasks = []
-    for line in raw_tasks.splitlines():
-        line = line.strip()
-        if line and (line[0].isdigit() or line.startswith("-")):
-            task_text = line.lstrip("0123456789.-) ").strip()
-            if task_text:
-                tasks.append(task_text)
+    if raw_response.startswith("```"):
+        raw_response = re.sub(r"^```[a-zA-Z]*\n?", "", raw_response)
+        raw_response = re.sub(r"```$", "", raw_response).strip()
+
+    try:
+        tasks = json.loads(raw_response)
+        if not isinstance(tasks, list):
+            raise ValueError("Expected a JSON array")
+        normalised = [
+            {
+                "title": t.get("title", ""),
+                "description": t.get("description", ""),
+                "estimated_days": t.get("estimated_days", 1),
+            }
+            for t in tasks
+        ]
+    except (json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=502, detail=f"AI returned invalid JSON: {str(e)}. Raw: {raw_response[:300]}")
 
     return {
         "offset": offset,
@@ -113,8 +145,8 @@ Return a numbered list of specific, actionable development tasks needed to compl
             "document_no": document_no,
             "story": story_title,
         },
-        "tasks": tasks,
-        "task_count": len(tasks),
+        "tasks": normalised,
+        "task_count": len(normalised),
     }
 
 
@@ -239,7 +271,18 @@ Description:
 Acceptance Criteria:
 {clean_criteria or '(no acceptance criteria provided)'}
 
-Return a numbered list of specific, actionable development tasks needed to complete this user story. Each task should be concise and clear."""
+Return ONLY a valid JSON array of task objects. Each object must have exactly these fields:
+- "title": short, actionable task name (max 10 words)
+- "description": one sentence explaining what needs to be done
+- "estimated_days": a number (0.5, 1, 2, etc.) for how long the task will take
+
+Example format:
+[
+  {{"title": "Create role detection service", "description": "Implement backend service that identifies user role on login and exposes it via API.", "estimated_days": 2}},
+  {{"title": "Build help content filter", "description": "Create a component that filters help articles based on the current user role.", "estimated_days": 1}}
+]
+
+Return only the JSON array, no extra text."""
 
     try:
         load_dotenv(override=True)
@@ -247,29 +290,41 @@ Return a numbered list of specific, actionable development tasks needed to compl
         response = client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=[
-                {"role": "system", "content": "You are an experienced agile project manager who breaks user stories into clear development tasks."},
+                {"role": "system", "content": "You are an experienced agile project manager. Always respond with valid JSON only, no markdown, no extra text."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,
         )
-        raw_tasks = response.choices[0].message.content.strip()
+        raw_response = response.choices[0].message.content.strip()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI generation failed: {str(e)}")
 
-    tasks = []
-    for line in raw_tasks.splitlines():
-        line = line.strip()
-        if line and (line[0].isdigit() or line.startswith("-")):
-            task_text = line.lstrip("0123456789.-) ").strip()
-            if task_text:
-                tasks.append(task_text)
+    # Strip markdown code fences if the model wraps the JSON
+    if raw_response.startswith("```"):
+        raw_response = re.sub(r"^```[a-zA-Z]*\n?", "", raw_response)
+        raw_response = re.sub(r"```$", "", raw_response).strip()
+
+    try:
+        tasks = json.loads(raw_response)
+        if not isinstance(tasks, list):
+            raise ValueError("Expected a JSON array")
+        # Normalise each task to ensure required fields exist
+        normalised = []
+        for t in tasks:
+            normalised.append({
+                "title": t.get("title", ""),
+                "description": t.get("description", ""),
+                "estimated_days": t.get("estimated_days", 1),
+            })
+    except (json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=502, detail=f"AI returned invalid JSON: {str(e)}. Raw: {raw_response[:300]}")
 
     return {
         "story_id": story_id,
         "document_no": document_no,
         "story": story_title,
-        "tasks": tasks,
-        "task_count": len(tasks),
+        "tasks": normalised,
+        "task_count": len(normalised),
     }
 
 

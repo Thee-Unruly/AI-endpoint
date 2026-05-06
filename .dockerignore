@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment secrets - NEVER include in image
+.env
+
+# Git
+.git/
+.gitignore
+
+# Dev/test files
+test_body.json
+inspect_db.py
+
+# IDE
+.vscode/
+.idea/

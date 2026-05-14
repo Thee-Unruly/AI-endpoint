@@ -9,12 +9,12 @@ A FastAPI service that uses Groq (LLaMA3) to automatically generate development 
 ### 1. Create and activate the virtual environment
 ```bash
 python -m venv venv
-venv/Scripts/activate      # Windows
+source venv/Scripts/activate
 ```
 
 ### 2. Install dependencies
 ```bash
-venv/Scripts/pip install fastapi uvicorn psycopg2-binary openai python-dotenv langchain langchain-openai langchain-groq groq
+pip install -r requirements.txt
 ```
 
 ### 3. Configure environment variables
@@ -33,7 +33,7 @@ Get a free Groq API key at https://console.groq.com
 
 ### 4. Start the server
 ```bash
-venv/Scripts/uvicorn endpoint:app --reload --port 8000
+uvicorn endpoint:app --reload --port 8000
 ```
 
 ---

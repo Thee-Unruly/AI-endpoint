@@ -12,6 +12,9 @@ load_dotenv(override=True)
 
 app = FastAPI(title="AgilePM Task Generator")
 
+MIN_GENERATED_TASKS = 5
+MAX_GENERATED_TASKS = 6
+
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -25,6 +28,19 @@ def strip_html(text: str | None) -> str:
     if not text:
         return ""
     return re.sub(r"<[^>]+>", " ", text).strip()
+
+
+def limit_generated_tasks(tasks: list, item_name: str) -> list:
+    limited_tasks = tasks[:MAX_GENERATED_TASKS]
+    if len(limited_tasks) < MIN_GENERATED_TASKS:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"AI returned {len(limited_tasks)} {item_name}; "
+                f"expected {MIN_GENERATED_TASKS} to {MAX_GENERATED_TASKS}."
+            ),
+        )
+    return limited_tasks
 
 
 
@@ -88,7 +104,7 @@ Description:
 Acceptance Criteria:
 {clean_criteria or '(no acceptance criteria provided)'}
 
-Return ONLY a valid JSON array of 3 to 7 tasks. Each object must have exactly these fields:
+Return ONLY a valid JSON array of {MIN_GENERATED_TASKS} to {MAX_GENERATED_TASKS} tasks. Each object must have exactly these fields:
 - "title": short, actionable task name (max 10 words)
 - "description": one sentence explaining what needs to be done
 - "estimated_days": a number (0.5, 1, 2, etc.) for how long the task will take
@@ -132,6 +148,7 @@ Return only the JSON array, no extra text."""
             }
             for t in tasks
         ]
+        normalised = limit_generated_tasks(normalised, "tasks")
     except (json.JSONDecodeError, ValueError) as e:
         raise HTTPException(status_code=502, detail=f"AI returned invalid JSON: {str(e)}. Raw: {raw_response[:300]}")
 
@@ -205,7 +222,7 @@ Description:
 Acceptance Criteria:
 {story.acceptance_criteria}
 
-Return a numbered list of specific, actionable development tasks needed to complete this user story. Each task should be concise and clear."""
+Return a numbered list of {MIN_GENERATED_TASKS} to {MAX_GENERATED_TASKS} specific, actionable development tasks needed to complete this user story. Each task should be concise and clear."""
 
     try:
         load_dotenv(override=True)
@@ -229,6 +246,8 @@ Return a numbered list of specific, actionable development tasks needed to compl
             task_text = line.lstrip("0123456789.-) ").strip()
             if task_text:
                 tasks.append(task_text)
+
+    tasks = limit_generated_tasks(tasks, "tasks")
 
     return {
         "title": story.title,
@@ -271,7 +290,7 @@ Description:
 Acceptance Criteria:
 {clean_criteria or '(no acceptance criteria provided)'}
 
-Return ONLY a valid JSON array of task objects. Each object must have exactly these fields:
+Return ONLY a valid JSON array of {MIN_GENERATED_TASKS} to {MAX_GENERATED_TASKS} task objects. Each object must have exactly these fields:
 - "title": short, actionable task name (max 10 words)
 - "description": one sentence explaining what needs to be done
 - "estimated_days": a number (0.5, 1, 2, etc.) for how long the task will take
@@ -316,6 +335,7 @@ Return only the JSON array, no extra text."""
                 "description": t.get("description", ""),
                 "estimated_days": t.get("estimated_days", 1),
             })
+        normalised = limit_generated_tasks(normalised, "tasks")
     except (json.JSONDecodeError, ValueError) as e:
         raise HTTPException(status_code=502, detail=f"AI returned invalid JSON: {str(e)}. Raw: {raw_response[:300]}")
 
